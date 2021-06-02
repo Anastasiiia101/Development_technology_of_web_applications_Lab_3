@@ -1,0 +1,17 @@
+{% extends 'shortener/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <div class="mb-3">
+            <h1>Group mailing</h1>
+            <form action="" method="post">{% csrf_token %}
+                {{ form.as_p }}
+                <button class="button is-primary" name="action" type="submit">Submit
+                    <i class="mdi-content-send right"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

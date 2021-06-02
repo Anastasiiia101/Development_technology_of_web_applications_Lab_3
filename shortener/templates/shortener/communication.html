@@ -1,0 +1,77 @@
+{% extends 'shortener/base.html' %}
+
+{% block content %}
+    <div class="field">
+        <textarea class="textarea" rows="15" id="message-log"></textarea>
+    </div>
+    <label for="input-message" id="input-message-id" class="label">{{ user.username }}</label>
+    <div class="field">
+        <input id="input-message" placeholder="Enter your message..." type="text" class="input" size="100"><br>
+    </div>
+    <div class="columns">
+        <div class="column has-text-centered">
+            <input id="send-message" class="button is-primary" type="button" value="Send message">
+        </div>
+        <div class="column has-text-centered">
+            <input id="send-links" class="button is-primary" type="button" value="Send links">
+        </div>
+    </div>
+    {{ room_name|json_script:"room-name" }}
+{% endblock content %}
+
+{% block script %}
+    <script>
+        const roomName = JSON.parse(document.getElementById('room-name').textContent);
+
+        const chatSocket = new WebSocket(
+            'ws://'
+            + window.location.host
+            + '/ws/communication/'
+            + roomName
+            + '/'
+        );
+
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            document.querySelector('#message-log').value += (data.message + '\n');
+        };
+
+        chatSocket.onclose = function (e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#input-message').focus();
+        document.querySelector('#input-message').onkeyup = function (e) {
+            if (e.keyCode === 13) {  // enter, return
+                document.querySelector('#send-message').click();
+            }
+        };
+
+        document.querySelector('#send-message').onclick = function (e) {
+            const messageInputDom = document.querySelector('#input-message');
+            const message = messageInputDom.value;
+            chatSocket.send(JSON.stringify({
+                'message': username + '~> ' + message
+            }));
+            messageInputDom.value = '';
+        };
+
+        let username = document.getElementById('input-message-id').textContent;
+
+        document.querySelector('#send-links').onclick = function (e) {
+            fetch(
+                'http://' +
+                window.location.host +
+                '/api/v1/shortener'
+            )
+                .then((response) => {
+                    return response.json();
+                })
+                .then((data) => {
+                    chatSocket.send(JSON.stringify({
+                        'message': username + ' links:\n' + JSON.stringify(data.results, undefined, 4),
+                    }));
+                });
+        };
+    </script>
+{% endblock script %}

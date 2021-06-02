@@ -1,0 +1,96 @@
+version: '3.6'
+
+services:
+
+  web:
+    container_name: url_shortener_web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: url_shortener_web
+    tty: true
+    env_file:
+      - envs/local.env
+    volumes:
+      - .:/work:delegated
+    links:
+      - db-url-shortener
+    depends_on:
+      - db-url-shortener
+    ports:
+    - '0.0.0.0:8000:8000'
+    networks:
+      - default
+    command: python3 manage.py runserver 0.0.0.0:8000
+
+
+  db-url-shortener:
+    container_name: db-url-shortener
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_USER: postgres
+      POSTGRES_DB: url-shortener-db
+      POSTGRES_PORT: 5432
+    ports:
+      - '0.0.0.0:5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - default
+
+  redis-url-shortener:
+    container_name: redis-url-shortener
+    image: redis:alpine
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6382:6379'
+    volumes:
+      - redis-data:/data
+    networks:
+      - default
+
+  celery:
+    container_name: url-shortener-celery
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: url_shortener_web
+    tty: true
+    env_file:
+      - envs/local.env
+    volumes:
+     - .:/work:delegated
+    links:
+      - redis-url-shortener
+    depends_on:
+      - redis-url-shortener
+    networks:
+      - default
+    command: celery -A shortener worker -E -Q email,url_dump -l info
+
+  celery-monitor:
+    container_name: url-shortener-celery-monitor
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: url_shortener_web
+    tty: true
+    env_file:
+      - envs/local.env
+    volumes:
+     - .:/work:delegated
+    links:
+      - redis-url-shortener
+    depends_on:
+      - redis-url-shortener
+    command: python3 -u monitor.py
+
+volumes:
+  db-data:
+  redis-data:
+
+networks:
+  default:
+    driver: bridge

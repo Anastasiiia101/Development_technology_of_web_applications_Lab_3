@@ -1,0 +1,51 @@
+{% extends 'shortener/base.html' %}
+
+{% block content %}
+    <div class="columns">
+        <div class="column has-text-centered">
+            <h1>Users Statuses</h1>
+        </div>
+        <br>
+        <div class="column">
+            <ul>
+                {% for user in users %}
+                    <li data-username="{{ user.username|escape }}">
+                        <div class="box">
+                            {{ user.username|escape }}: {{ user.status|default:'Offline' }}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block script %}
+    <script>
+        var socket = new WebSocket('ws://' + window.location.host + '/ws/users/online/');
+
+        socket.onopen = function open() {
+            console.log('WebSockets connection created.');
+        };
+
+        socket.onmessage = function message(event) {
+            var event_json = JSON.parse(event.data);
+            var data = JSON.parse(event_json.message)
+            console.log(data)
+            // екануємо JavaScript щоб запобігти XSS-атакам
+            var username = encodeURI(data['username']);
+            console.log(username)
+            var user = $('li').filter(function () {
+                return $(this).data('username') == username;
+            });
+
+            console.log(data['is_logged_in'])
+
+            if (data['is_logged_in'] === true) {
+                user.html('<div class="box">' + username + ': Online' + '</div>');
+            } else {
+                user.html('<div class="box">' + username + ': Offline' + '</div>');
+            }
+        };
+    </script>
+{% endblock script %}
